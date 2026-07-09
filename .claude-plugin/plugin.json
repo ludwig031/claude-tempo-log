@@ -1,0 +1,12 @@
+{
+  "name": "claude-tempo-log",
+  "displayName": "Tempo Work Log",
+  "version": "0.1.0",
+  "description": "Logira Claude Code sessione za evidenciju sati: task ID, tema razgovora i stvarno odrađeno vrijeme (time slotovi) — spremno za unos u Tempo.",
+  "author": {
+    "name": "Borna Matijanić",
+    "email": "borna.matijanic@gmail.com"
+  },
+  "license": "MIT",
+  "keywords": ["time-tracking", "tempo", "work-log", "hooks", "agency"]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "tempo-tools",
+  "description": "Alati za evidenciju agencijskih sati iz Claude Code sessiona (Tempo).",
+  "owner": {
+    "name": "Borna Matijanić",
+    "email": "borna.matijanic@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "claude-tempo-log",
+      "source": "./",
+      "description": "Logiranje sati za Tempo: task ID, tema i stvarni time slotovi po sessionu."
+    }
+  ]
+}
