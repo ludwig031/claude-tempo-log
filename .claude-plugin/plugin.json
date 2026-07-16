@@ -1,7 +1,7 @@
 {
   "name": "claude-tempo-log",
   "displayName": "Tempo Work Log",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Logs Claude Code sessions for time tracking: task ID, conversation topic and real working time (activity slots) — ready to enter into Tempo.",
   "author": {
     "name": "Borna Matijanić",

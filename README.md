@@ -8,6 +8,7 @@ A Claude Code plugin for agency time tracking. Every Claude Code session is auto
 - **Records the topic**: while working, Claude writes a one-line topic of the session and updates it if the focus changes.
 - **Measures real time, not wall-clock**: a session open from 10:00 to 22:00 is not 12 hours of work. Transcript activity is cut into **time slots**: a silence longer than 30 minutes opens a new slot, shorter gaps count as work. Three blocks of work during a day = three slots with realistic minutes.
 - **Log**: `~/.claude/work-log.jsonl` — one line per slot (date, task ID, topic, project, start/end, minutes). All data stays local and per-user; the plugin never sends anything anywhere.
+- **Never loses a session**: every report first runs a **sweep** that rebuilds the slots of *all* sessions straight from the raw transcripts. Sessions that are still running, or that died without a clean exit (closed tab, killed terminal, dropped SSH), are therefore always included — nothing depends on the SessionEnd hook firing.
 
 ## Installation
 
@@ -36,13 +37,14 @@ After installing, open a new session — Claude will immediately ask for the tas
 ## Reports
 
 ```
-/claude-tempo-log:report                          # today
+/claude-tempo-log:report                          # current calendar week (Mon–Sun)
+/claude-tempo-log:report --today                  # today only
 /claude-tempo-log:report --date 2026-07-08        # a specific day
-/claude-tempo-log:report --week                   # current calendar week (Mon–Sun)
 /claude-tempo-log:report --week 2026-07-01        # the week containing that date
 /claude-tempo-log:report --from 2026-07-01 --to 2026-07-04   # arbitrary range
 /claude-tempo-log:report --all                    # entire log
 /claude-tempo-log:report --slots                  # + individual slots
+/claude-tempo-log:report --timeline               # + per-day timelines in multi-day reports
 /claude-tempo-log:report --no-chart               # tables only
 ```
 
@@ -76,6 +78,7 @@ Note: parallel sessions on multiple projects are each counted in full (slots may
 3. Slot duration = last activity − first activity of the slot.
 4. Long autonomous work by Claude stays one slot (the transcript fills continuously).
 5. A session without a single user prompt is not logged; `/clear` and resume never duplicate entries (a session's slots are always recomputed and replaced).
+6. The sweep (`scripts/sweep.py`, run automatically before every report) recomputes every transcript with the same rules, so live and abruptly-killed sessions are logged too. Task IDs and topics already recorded are preserved.
 
 ## Configuration (environment variables)
 
@@ -97,6 +100,7 @@ scripts/session-start.sh         # state + instructions to Claude (task ID, topi
 scripts/prompt-check.sh          # task ID enforcement + auto-capture
 scripts/tempo-task               # helper Claude uses to record task/topic
 scripts/session-end.sh|.py       # transcript → time slots → work-log.jsonl
-scripts/report.sh|.py            # Tempo report with timeline/bar charts
+scripts/sweep.py                 # rebuild all sessions from transcripts (live/killed too)
+scripts/report.sh|.py            # sweep + Tempo report with timeline/bar charts
 commands/report.md               # /claude-tempo-log:report
 ```

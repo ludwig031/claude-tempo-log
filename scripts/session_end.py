@@ -27,14 +27,20 @@ def parse_ts(ts: str) -> datetime:
     return datetime.fromisoformat(ts.replace("Z", "+00:00"))
 
 
+def _is_command_wrapper(text: str) -> bool:
+    """Slash-command envelopes (<command-name>/clear ...) are not real prompts."""
+    return text.lstrip().startswith(("<command-", "<local-command-"))
+
+
 def is_user_prompt(entry: dict) -> bool:
     if entry.get("type") != "user" or entry.get("isSidechain") or entry.get("isMeta"):
         return False
     content = (entry.get("message") or {}).get("content")
     if isinstance(content, str):
-        return bool(content.strip())
+        return bool(content.strip()) and not _is_command_wrapper(content)
     if isinstance(content, list):
-        return any(isinstance(b, dict) and b.get("type") == "text" for b in content)
+        texts = [b.get("text", "") for b in content if isinstance(b, dict) and b.get("type") == "text"]
+        return any(t.strip() and not _is_command_wrapper(t) for t in texts)
     return False
 
 
@@ -74,8 +80,30 @@ def build_slots(timestamps):
     return slots
 
 
-def rewrite_log(session_key: str, rows: list):
-    """Replace all rows of this transcript in the log, atomically and locked."""
+def make_rows(timestamps, task_id: str, topic: str, project: str,
+              session_key: str, session_id: str, cwd: str) -> list:
+    """Turn activity timestamps into work-log rows (one per slot)."""
+    rows = []
+    for start, end in build_slots(timestamps):
+        local_start = start.astimezone()
+        local_end = end.astimezone()
+        rows.append({
+            "date": local_start.strftime("%Y-%m-%d"),
+            "task_id": task_id,
+            "topic": topic,
+            "project": project,
+            "slot_start": local_start.strftime("%H:%M"),
+            "slot_end": local_end.strftime("%H:%M"),
+            "duration_min": max(1, round((end - start).total_seconds() / 60)),
+            "session": session_key,
+            "session_id": session_id,
+            "cwd": cwd,
+        })
+    return rows
+
+
+def rewrite_log(session_keys: set, rows: list):
+    """Replace all rows of these transcripts in the log, atomically and locked."""
     LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
     lock_path = LOG_FILE.with_suffix(LOG_FILE.suffix + ".lock")
     with open(lock_path, "w") as lock:
@@ -88,7 +116,7 @@ def rewrite_log(session_key: str, rows: list):
                     if not line:
                         continue
                     try:
-                        if json.loads(line).get("session") == session_key:
+                        if json.loads(line).get("session") in session_keys:
                             continue
                     except json.JSONDecodeError:
                         pass
@@ -132,24 +160,9 @@ def main():
     project = state.get("project") or (os.path.basename(cwd) if cwd else "unknown")
     session_key = Path(transcript).stem
 
-    rows = []
-    for start, end in build_slots(timestamps):
-        local_start = start.astimezone()
-        local_end = end.astimezone()
-        rows.append({
-            "date": local_start.strftime("%Y-%m-%d"),
-            "task_id": state.get("task_id") or "",
-            "topic": state.get("topic") or "",
-            "project": project,
-            "slot_start": local_start.strftime("%H:%M"),
-            "slot_end": local_end.strftime("%H:%M"),
-            "duration_min": max(1, round((end - start).total_seconds() / 60)),
-            "session": session_key,
-            "session_id": session_id,
-            "cwd": cwd,
-        })
-
-    rewrite_log(session_key, rows)
+    rows = make_rows(timestamps, state.get("task_id") or "", state.get("topic") or "",
+                     project, session_key, session_id, cwd)
+    rewrite_log({session_key}, rows)
     cleanup()
 
 

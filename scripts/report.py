@@ -2,9 +2,9 @@
 """Summarize the work log for Tempo entry.
 
 Period selection:
-  report.py                     today
+  report.py                     current calendar week (Mon-Sun)
+  report.py --today             today
   report.py --date 2026-07-08   a specific day
-  report.py --week              current calendar week (Mon-Sun)
   report.py --week 2026-07-01   the week containing that date
   report.py --from 2026-07-01 --to 2026-07-04   arbitrary range (inclusive)
   report.py --all               entire log
@@ -67,13 +67,16 @@ def select_period(args):
         start = parse_day(getattr(args, "from"))
         end = parse_day(args.to) if args.to else today
         return (lambda d: start.isoformat() <= d <= end.isoformat()), f"{start} to {end}"
-    if args.week is not None:
-        anchor = parse_day(args.week) if args.week else today
-        monday = anchor - timedelta(days=anchor.weekday())
-        sunday = monday + timedelta(days=6)
-        return (lambda d: monday.isoformat() <= d <= sunday.isoformat()), f"week {monday} to {sunday}"
-    target = args.date or today.isoformat()
-    return (lambda d: d == target), target
+    if args.today:
+        return (lambda d: d == today.isoformat()), today.isoformat()
+    if args.date:
+        target = parse_day(args.date).isoformat()
+        return (lambda d: d == target), target
+    # default (or explicit --week): current calendar week, Mon-Sun
+    anchor = parse_day(args.week) if args.week else today
+    monday = anchor - timedelta(days=anchor.weekday())
+    sunday = monday + timedelta(days=6)
+    return (lambda d: monday.isoformat() <= d <= sunday.isoformat()), f"week {monday} to {sunday}"
 
 
 def load_rows(keep):
@@ -97,12 +100,12 @@ def slot_bounds_min(row):
     """Slot start/end as minutes since midnight; midnight-crossing ends clamp to 24:00."""
     start = hhmm_to_min(row.get("slot_start", "00:00"))
     end = hhmm_to_min(row.get("slot_end", "00:00"))
-    if end <= start:
+    if end < start:
         end = 24 * 60
     return start, end
 
 
-def day_timeline(rows):
+def day_timeline(rows, title="Day timeline (one cell = 15 min)"):
     """One line per task: quarter-hour cells across the day's active hours."""
     by_task = defaultdict(list)
     for row in rows:
@@ -113,7 +116,7 @@ def day_timeline(rows):
     h0, h1 = first // 60, min(24, (last + 59) // 60)
 
     header = " " * LABEL_W + "".join(f"{h:02d}  " for h in range(h0, h1))
-    print("\nDay timeline (one cell = 15 min)")
+    print(f"\n{title}")
     print(header)
     for task in sorted(by_task):
         cells = ["·"] * (h1 - h0) * 4
@@ -154,13 +157,16 @@ def period_charts(rows):
 
 def main():
     ap = argparse.ArgumentParser(description="Tempo work-log report")
-    ap.add_argument("--date", help="a specific day, YYYY-MM-DD (default: today)")
+    ap.add_argument("--today", action="store_true", help="today only")
+    ap.add_argument("--date", metavar="DATE", help="a specific day, YYYY-MM-DD")
     ap.add_argument("--week", nargs="?", const="", metavar="DATE",
-                    help="calendar week Mon-Sun; optional DATE picks the week containing it")
+                    help="calendar week Mon-Sun (the default); optional DATE picks the week containing it")
     ap.add_argument("--from", dest="from", metavar="DATE", help="range start, YYYY-MM-DD")
     ap.add_argument("--to", metavar="DATE", help="range end, YYYY-MM-DD (default: today)")
     ap.add_argument("--all", action="store_true", help="entire log")
     ap.add_argument("--slots", action="store_true", help="list individual slots")
+    ap.add_argument("--timeline", action="store_true",
+                    help="per-day task timelines in multi-day reports")
     ap.add_argument("--no-chart", action="store_true", help="tables only, no charts")
     args = ap.parse_args()
 
@@ -209,6 +215,11 @@ def main():
             day_timeline(rows)
         else:
             period_charts(rows)
+            if args.timeline:
+                for day in sorted(days):
+                    weekday = datetime.strptime(day, "%Y-%m-%d").strftime("%a")
+                    day_timeline([r for r in rows if r.get("date") == day],
+                                 title=f"{weekday} {day} (one cell = 15 min)")
 
     if any(t == "???" for _, t in groups):
         print(f"\n⚠ Some slots have no task ID — fill them in manually in {LOG_FILE}")
