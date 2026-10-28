@@ -1,0 +1,89 @@
+{
+  "timezone": "Europe/Zagreb",
+  "cell_minutes": 15,
+  "cell_min_active_minutes": 8,
+  "internal_label": "INTERNAL",
+  "jira_cloud_id": "",
+  "buckets": {},
+  "paths": {
+    "claude_projects": "~/.claude/projects",
+    "codex_sessions": "~/.codex/sessions",
+    "time_logger_db": "~/.config/Netgen Time Logger/netgen-time-logger.db",
+    "browser_history": [
+      "~/.config/BraveSoftware/Brave-Browser/Default/History"
+    ]
+  },
+  "drop_cwd_prefixes": [
+    "~/.config/Netgen Time Logger/drafting-runs"
+  ],
+  "codex_delegated_originators": [
+    "codex_exec",
+    "Claude Code"
+  ],
+  "meeting_title_patterns": [
+    "^Meet - ",
+    "\\| Microsoft Teams",
+    "^Zoom",
+    "[Hh]uddle"
+  ],
+  "prompt_excerpts_per_slot": 4,
+  "prompt_excerpt_chars": 180,
+  "browser": {
+    "ignore_hosts": [
+      "newtab",
+      "google.com",
+      "accounts.google.com",
+      "youtube.com",
+      "netflix.com",
+      "facebook.com",
+      "instagram.com",
+      "reddit.com",
+      "x.com",
+      "twitter.com",
+      "linkedin.com",
+      "tiktok.com",
+      "index.hr",
+      "24sata.hr",
+      "jutarnji.hr",
+      "net.hr",
+      "njuskalo.hr",
+      "amazon.com",
+      "aliexpress.com"
+    ],
+    "dev_hosts": [
+      "localhost",
+      "127.0.0.1",
+      "*.local",
+      "*.test",
+      "*.localhost",
+      "*.ddev.site",
+      "*.lndo.site"
+    ],
+    "preprod_hosts": [
+      "*preprod*",
+      "*staging*",
+      "*stage.*",
+      "*.netgen.host"
+    ],
+    "tool_hosts": [
+      "atlassian.net",
+      "bitbucket.org",
+      "github.com",
+      "gitlab.com",
+      "sentry.io",
+      "console.cloud.google.com",
+      "aistudio.google.com",
+      "dash.cloudflare.com",
+      "meet.google.com",
+      "calendar.google.com",
+      "drive.google.com",
+      "docs.google.com",
+      "app.slack.com",
+      "teams.microsoft.com",
+      "1password.com",
+      "uptimerobot.com"
+    ],
+    "max_other_hosts_per_day": 40,
+    "project_hosts": {}
+  }
+}

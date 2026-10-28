@@ -1,12 +1,18 @@
 {
   "name": "claude-tempo-log",
   "displayName": "Tempo Work Log",
-  "version": "0.3.0",
-  "description": "Logs Claude Code sessions for time tracking: task ID, conversation topic and real working time (activity slots) — ready to enter into Tempo.",
+  "version": "0.4.0",
+  "description": "Logs Claude Code sessions for time tracking and builds a reconciled Tempo timesheet (sessions, Slack, meetings, browser) per day or week.",
   "author": {
     "name": "Borna Matijanić",
     "email": "borna.matijanic@gmail.com"
   },
   "license": "MIT",
-  "keywords": ["time-tracking", "tempo", "work-log", "hooks", "agency"]
+  "keywords": [
+    "time-tracking",
+    "tempo",
+    "work-log",
+    "hooks",
+    "agency"
+  ]
 }

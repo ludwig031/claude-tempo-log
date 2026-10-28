@@ -8,6 +8,7 @@ A Claude Code plugin for agency time tracking. Every Claude Code session is auto
 - **Records the topic**: while working, Claude writes a one-line topic of the session and updates it if the focus changes.
 - **Measures real time, not wall-clock**: a session open from 10:00 to 22:00 is not 12 hours of work. Transcript activity is cut into **time slots**: a silence longer than 30 minutes opens a new slot, shorter gaps count as work. Three blocks of work during a day = three slots with realistic minutes.
 - **Log**: `~/.claude/work-log.jsonl` — one line per slot (date, task ID, topic, project, start/end, minutes). All data stays local and per-user; the plugin never sends anything anywhere.
+- **Reporting needs no task ID**: `/claude-tempo-log:report` and `/claude-tempo-log:timesheet` record the session as `INTERNAL` instead of asking. A session that restarts (e.g. one process per turn) keeps the task ID it already logged.
 - **Never loses a session**: every report first runs a **sweep** that rebuilds the slots of *all* sessions straight from the raw transcripts. Sessions that are still running, or that died without a clean exit (closed tab, killed terminal, dropped SSH), are therefore always included — nothing depends on the SessionEnd hook firing.
 
 ## Installation
@@ -71,6 +72,47 @@ IRB-12        ███████ 1h 45m
 
 Note: parallel sessions on multiple projects are each counted in full (slots may overlap in time) — every task gets its complete time.
 
+## Timesheet (reconciled, ready to enter)
+
+The report above counts every session in full. The timesheet goes one step further: it reconciles everything you did into **non-overlapping 15-minute slots with English descriptions**, ready to type into Tempo.
+
+```
+/claude-tempo-log:timesheet                     # current week
+/claude-tempo-log:timesheet 2026-10-19          # one day (19-10-2026 works too)
+/claude-tempo-log:timesheet --week 2026-10-19   # the week containing that date
+/claude-tempo-log:timesheet --from 2026-10-19 --to 2026-10-21
+```
+
+Output, one line per slot, then internal work, totals, a per-day timeline and a "check before entry" list:
+
+```
+CED-2572 | 2026-10-20 | 12:30-13:30 | 1h | Backoffice redesign: Croatian translation, Cedevita styling, review queue
+```
+
+How it works:
+
+1. `scripts/timesheet_collect.py` gathers local evidence for the period into `~/.claude/tempo-timesheet/<period>/brief.md`: Claude and Codex session slots with the prompts typed in each slot, Netgen Time Logger signals if installed (meetings from Meet/Teams window focus, calendar, commits, Jira activity, entries already in Tempo) and browser history (Brave by default).
+2. Claude reads the brief, adds your Slack messages (Slack MCP) and checks task keys in Jira (Atlassian MCP), then writes `annotations.json`: corrected keys, Slack/meeting intervals and descriptions.
+3. `scripts/timesheet_merge.py` applies the rules and prints the timesheet:
+   - a meeting beats a session, a session beats Slack/browser fill; between two parallel sessions the longer one wins;
+   - a 15-minute cell counts when it holds at least 8 active minutes (nearest-quarter rounding, as in the report) and goes to the task with most minutes;
+   - work that gets no cell still gets one free quarter next to it, so short work never disappears;
+   - slots never cross midnight; entries already in Tempo are not repeated;
+   - lost time (overlaps, rounding), changed keys and missing sources are listed for review.
+4. `logger-notes.txt` in the same directory holds the result as plain text to paste into the Netgen Time Logger chat.
+
+Optional settings go into `~/.claude/tempo-timesheet/config.json` and are merged over `config/timesheet.default.json`, e.g.:
+
+```json
+{
+  "jira_cloud_id": "<site uuid>",
+  "buckets": {"ABC-3": "client meetings", "ABC-14": "PM and support"},
+  "browser": {"project_hosts": {"*.client.com": "ABC (prod)", "*.preprod.host": "preprod"}}
+}
+```
+
+Privacy: browser history is read in full only to tell project hosts (dev/preprod/prod) apart; the report contains project work only. Evidence files stay in `~/.claude/tempo-timesheet` (mode 700). Slack and Jira are read through the MCP servers of your Claude session; nothing is written anywhere.
+
 ## Slot rules
 
 1. A slot opens with activity after a silence longer than 30 minutes.
@@ -102,5 +144,11 @@ scripts/tempo-task               # helper Claude uses to record task/topic
 scripts/session-end.sh|.py       # transcript → time slots → work-log.jsonl
 scripts/sweep.py                 # rebuild all sessions from transcripts (live/killed too)
 scripts/report.sh|.py            # sweep + Tempo report with timeline/bar charts
+scripts/timesheet_collect.py     # evidence for a period (sessions, meetings, commits, browser)
+scripts/timesheet_merge.py       # evidence + annotations → non-overlapping Tempo slots
+scripts/timesheet_common.py      # config, periods, formatting
+config/timesheet.default.json    # timesheet defaults (override in ~/.claude/tempo-timesheet/config.json)
 commands/report.md               # /claude-tempo-log:report
+commands/timesheet.md            # /claude-tempo-log:timesheet
+tests/                           # python3 -m unittest discover -s tests
 ```

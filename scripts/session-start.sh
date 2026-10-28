@@ -23,6 +23,17 @@ if [ ! -f "$state" ]; then
     --arg project "$(basename "${cwd:-unknown}")" \
     '{start: $start, cwd: $cwd, project: $project, task_id: "", topic: ""}' \
     > "$state"
+  # A session can end and start again (e.g. one process per turn): keep what the log already knows.
+  log="${TEMPO_LOG_FILE:-$HOME/.claude/work-log.jsonl}"
+  if [ -f "$log" ]; then
+    known="$(grep -F "\"$session_id\"" "$log" | jq -sc --arg s "$session_id" \
+      '[.[] | select(.session == $s and (.task_id // "") != "")] | last // empty' 2>/dev/null || true)"
+    if [ -n "$known" ]; then
+      tmp="$(mktemp "$STATE_DIR/.tmp.XXXXXX")"
+      jq --argjson k "$known" '.task_id = $k.task_id | .topic = ($k.topic // "")' "$state" > "$tmp"
+      mv "$tmp" "$state"
+    fi
+  fi
 fi
 
 task_id="$(jq -r '.task_id // empty' "$state")"

@@ -24,6 +24,13 @@ task_id=""
 # Task ID already known: stay silent (zero context overhead).
 [ -z "$task_id" ] || exit 0
 
+# Reporting commands are internal work: record that instead of asking.
+if printf '%s' "$prompt" | grep -qE '(^[[:space:]]*|<command-name>)/claude-tempo-log:(timesheet|report)'; then
+  "$PLUGIN_ROOT/scripts/tempo-task" "$session_id" task "${TEMPO_INTERNAL_TASK:-INTERNAL}" >/dev/null
+  "$PLUGIN_ROOT/scripts/tempo-task" "$session_id" topic "Tempo report / timesheet" >/dev/null
+  exit 0
+fi
+
 # Auto-capture only from the start of the prompt, to avoid false positives
 # mid-sentence (SHA-256, ISO-8601, ...).
 found="$(printf '%s' "$prompt" | grep -oE "^[[:space:]]*($TASK_REGEX)" | head -1 | tr -d '[:space:]' || true)"
